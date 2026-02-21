@@ -64,17 +64,61 @@
  *   // => "voted!"
  */
 export function createElection(candidates) {
-  // Your code here
+  const votes = {};
+  const registered = new Set();
+  const voted = new Set();
+  
+  candidates.forEach(c => votes[c.id] = 0);
+
+  return {
+    registerVoter(voter) {
+      if (!voter || !voter.id || voter.age < 18 || registered.has(voter.id)) return false;
+      registered.add(voter.id);
+      return true;
+    },
+    castVote(voterId, candidateId, onSuccess, onError) {
+      if (!registered.has(voterId)) return onError("Voter not registered");
+      if (voted.has(voterId)) return onError("Already voted");
+      if (votes[candidateId] === undefined) return onError("Invalid candidate");
+      votes[candidateId]++;
+      voted.add(voterId);
+      return onSuccess({ voterId, candidateId });
+    },
+    getResults(sortFn) {
+      const results = candidates.map(c => ({ ...c, votes: votes[c.id] }));
+      if (sortFn) return results.sort(sortFn);
+      return results.sort((a, b) => b.votes - a.votes);
+    },
+    getWinner() {
+      const results = this.getResults();
+      return results[0]?.votes > 0 ? results[0] : null;
+    }
+  };
 }
 
 export function createVoteValidator(rules) {
-  // Your code here
+  return (voter) => {
+    if (!voter) return { valid: false, reason: "Invalid voter" };
+    for (const field of rules.requiredFields) {
+      if (!voter[field]) return { valid: false, reason: `Missing ${field}` };
+    }
+    if (voter.age < rules.minAge) return { valid: false, reason: "Age requirement not met" };
+    return { valid: true, reason: "" };
+  };
 }
 
 export function countVotesInRegions(regionTree) {
-  // Your code here
+  if (!regionTree || typeof regionTree.votes !== 'number') return 0;
+  let total = regionTree.votes;
+  if (Array.isArray(regionTree.subRegions)) {
+    total += regionTree.subRegions.reduce((sum, sub) => sum + countVotesInRegions(sub), 0);
+  }
+  return total;
 }
 
 export function tallyPure(currentTally, candidateId) {
-  // Your code here
+  return {
+    ...currentTally,
+    [candidateId]: (currentTally[candidateId] || 0) + 1
+  };
 }
